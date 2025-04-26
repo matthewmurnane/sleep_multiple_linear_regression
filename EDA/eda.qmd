@@ -1,0 +1,73 @@
+---
+title: "EDA"
+format: pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(ggthemes)
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_bar(aes(x = gender),
+           fill="black")+
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot() +
+  geom_bar(aes(x = fct_infreq(occupation)),
+           fill = "black") +
+  coord_flip() +
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_histogram(aes(x = age),
+                 fill = "black",
+                 color = "white",
+                 binwidth = 1)+
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_histogram(aes(x=sleep_duration),
+                 fill = "black",
+                 color = "white",
+                 binwidth = .1)+
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_bar(aes(x = stress_level),
+           fill="black")+
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_point(aes(x=diastolic,
+                 y=systolic))+
+  theme_few()
+```
+
+```{r}
+sleep %>% 
+  ggplot()+
+  geom_histogram(aes(x=physical_activity_level),
+                 fill = "black")+
+  theme_few()
+```
+

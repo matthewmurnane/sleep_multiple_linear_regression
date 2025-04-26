@@ -1,0 +1,61 @@
+---
+title: "outlier_exploration"
+format: pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(ggthemes)
+library(car)
+```
+
+```{r}
+full_model <- lm(sleep_duration ~., sleep)
+```
+
+### Outliers
+
+```{r}
+plot(full_model)
+```
+
+```{r}
+leverage <- hatvalues(full_model)
+studentized <- rstudent(full_model)
+dffits_vals <- dffits(full_model)
+cooks_d <- cooks.distance(full_model)
+
+diagnostics <- data.frame(Leverage = leverage,
+                          Studentized = studentized,
+                          DFFITS = dffits_vals,
+                          Cooks_Distance = cooks_d)
+
+n <- nrow(sleep)
+p <- length(coef(full_model)) - 1
+leverage_threshold <- 2 * (p + 1) / n
+studentized_threshold <- 2
+cooks_threshold <- 1
+
+# Find points exceeding thresholds
+high_leverage <- which(leverage > leverage_threshold)
+high_studentized <- which(abs(studentized) > studentized_threshold)
+high_cooks <- which(cooks_d > cooks_threshold)
+
+# Unique indices that exceed any threshold
+suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
+
+# Return threshold values, diagnostic preview, and rows flagged as potential outliers
+list(
+  leverage_threshold = leverage_threshold,
+  studentized_threshold = studentized_threshold,
+  cooks_threshold = cooks_threshold,
+  diagnostics_preview = head(diagnostics, 10),
+  flagged_rows = diagnostics[suspicious_indices, ])
+
+```
+
+### Multicollinearity
+
+
