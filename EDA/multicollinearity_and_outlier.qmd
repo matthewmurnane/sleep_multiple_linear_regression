@@ -71,6 +71,51 @@ summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.99
 
 ```
 
+
+```{r}
+
+```
+
 ### Multicollinearity
 
+```{r}
+library(car)
+
+# Calculate VIFs on the cleaned model
+vif_values <- vif(full_model_clean)
+
+# Running VIF gave error (aliased variables are present in the model), so find out which are aliased 
+alias(full_model_clean) # BMI->Overweight is perfectly aliased with other variables in the model
+
+# Refit the model without BMI
+full_model_clean2 <- lm(sleep_duration ~ gender + age + occupation + quality_of_sleep +
+                        physical_activity_level + stress_level + heart_rate +
+                        daily_steps + sleep_disorder + MAP, data = sleep_clean)
+
+# Calculate VIFs on the cleaned model, with BMI removed 
+vif_values <- vif(full_model_clean2)
+vif_values     # Significant multicolinearity present, variable selection is next. Start with step-wise AIC variable selection  
+
+```
+
+### Variable Selection 
+
+```{r}
+# Step-wise AIC Variable Selection 
+
+library(MASS)
+
+step_model <- stepAIC(full_model_clean2, direction = "both", trace = FALSE)
+
+# Check final selected model
+summary(step_model)
+
+# Observing which variables were removed from full model 
+formula(full_model_clean2) 
+formula(step_model)      # Variable removed: quality_of_sleep
+
+# Check VIF of the step-wise model
+vif(step_model)      # VIF values have decreased significantly after step-wise variable selection
+
+```
 
