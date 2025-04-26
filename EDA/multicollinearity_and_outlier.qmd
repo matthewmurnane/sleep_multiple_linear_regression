@@ -13,6 +13,7 @@ library(car)
 
 ```{r}
 full_model <- lm(sleep_duration ~., sleep)
+summary(full_model)
 ```
 
 ### Outliers
@@ -53,6 +54,20 @@ list(
   cooks_threshold = cooks_threshold,
   diagnostics_preview = head(diagnostics, 10),
   flagged_rows = diagnostics[suspicious_indices, ])
+
+# Remove the suspicious rows
+sleep_clean <- sleep[-suspicious_indices, ]
+
+# Refit the model excluding suspicious rows 
+full_model_clean <- lm(sleep_duration ~ ., data = sleep_clean)
+
+# Plot diagnostics again on the cleaned model
+par(mfrow = c(2, 2))
+plot(full_model_clean)
+
+# Comparison of model summaries
+summary(full_model)        # Old model (with potential outliers)  R^2  = 0.9592
+summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.9929
 
 ```
 
