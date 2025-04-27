@@ -73,10 +73,15 @@ summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.99
 
 
 ```{r}
-
+sleep[204,]
 ```
 
 ### Multicollinearity
+
+```{r}
+vif(full_model)
+```
+
 
 ```{r}
 library(car)
