@@ -76,6 +76,17 @@ summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.99
 sleep[204,]
 ```
 
+```{r}
+sleep_new <- sleep[-204,]
+full_model_new <- lm(sleep_duration~.,data = sleep_new)
+summary(full_model_new)
+
+vif(full_model_new)
+
+cor(sleep_new[, c(2,5,6,9,10,12)])
+```
+
+
 ### Multicollinearity
 
 ```{r}
