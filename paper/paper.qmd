@@ -1,0 +1,77 @@
+---
+title: "Multiple Linear Regression on Sleep Data"
+author:
+  - name: Ethan Newcomb
+  - name: Kyubin Im
+  - name: Matthew Murnane
+format:
+  pdf:
+    mainfont: "Times New Roman"
+indent: true
+fontsize: "12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE)
+#Packages
+library(tidyverse)
+library(dplyr)
+library(ggthemes)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+library(car)
+library(MASS)
+library(readr)
+library(janitor)
+```
+
+```{r include=FALSE}
+#Data Wrangling Code
+sleep <- read_csv("../data/Sleep_health_and_lifestyle_dataset.csv") %>%  
+  clean_names()
+
+sleep <- sleep %>%
+  separate(blood_pressure, into = c("systolic", "diastolic"), sep = "/", convert = TRUE)
+
+sleep$stress_level <- as.factor(sleep$stress_level)
+sleep$quality_of_sleep <- as.factor(sleep$quality_of_sleep)
+
+sleep <- sleep %>%
+  mutate(systolic = as.numeric(systolic),
+         diastolic = as.numeric(diastolic),
+         PP = systolic-diastolic)
+
+sleep <- sleep %>%
+  dplyr::select(!c(person_id, systolic, diastolic))
+```
+
+\newpage
+
+\noindent\textbf{\Large Motivation}
+
+\vspace{0.5em}
+
+Sleep is important and people are always wondering how they can improve their sleep. Everyone knows how annoying it is to be tossing and turning all night long. Lifestyle and general health seem to be important indicators. In this report we explore a sleep data set and see what lifestyle and health variables have a significant relationship with sleep duration.
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large About the Data}
+
+```{r}
+#Table 1: Variables in Sleep
+variable_names <- matrix(c(
+  "Gender", "Age", "Occupation",
+  "Sleep Duration (hours)", "Quality of Sleep (scale: 1–10)", "Physical Activity Level (minutes/day)",
+  "Stress Level (scale: 1–10)", "BMI Category", "PP (Pulse Pressure)",
+  "Heart Rate (bpm)", "Daily Steps", "Sleep Disorder"
+), ncol = 3, byrow = TRUE)
+
+kable(variable_names, col.names = NULL, caption = "Variables From Our Data")
+```
+
+Sleep Duration is a continuous variable and will be our response variable. The rest will be our covariates. Gender, Occupation, Quality of Sleep, Stress Level, BMI Category and Sleep Disorder are categorical variables. Physical Activity, MAP, and Daily steps are continuous variables. We have a total of 374 observations.
+
+We had no missing data in the data set but we did have to make a mutation using `dplyr`. In the original data set there was a blood pressure variable that was encoded as a character but was a ratio, e.g. "$\frac{120}{80}$". We separated the blood pressure variable into two: Systolic and Diastolic. These two we suspected to be highly correlated but did not want to just drop one or the other. We had options of combining the two into something meaningful. One was Pulse Pressure (PP), which is calculated as $\text{PP}=\text{systolic}-\text{diastolic}$. PP is the force of the hearts contraction on the arteries. The other is called Mean Arterial Pressure (MAP), which is calculated as $\text{MAP}=\frac{\text{systolic}\cdot\text{diastolic}^2}{3}$. MAP is the average blood pressure throughout a cardiac cycle. We decided on PP because it was simpler to calculate and understand.
+
+
