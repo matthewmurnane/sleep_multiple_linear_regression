@@ -1,0 +1,307 @@
+---
+title: "outlier_exploration"
+format: pdf
+---
+
+```{r}
+library(readr)
+library(tidyverse)
+library(janitor)
+
+sleep <- read_csv("data/Sleep_health_and_lifestyle_dataset.csv") %>% 
+  clean_names()
+
+glimpse(sleep)
+
+sleep <- sleep %>%
+  separate(blood_pressure, into = c("systolic", "diastolic"), sep = "/", convert = TRUE)
+
+sleep$stress_level <- as.factor(sleep$stress_level)
+sleep$gender <- as.factor(sleep$gender)
+sleep$occupation <- as.factor(sleep$occupation)
+sleep$bmi_category <- as.factor(sleep$bmi_category)
+sleep$sleep_disorder <- as.factor(sleep$sleep_disorder)
+
+sleep <- sleep %>%
+  mutate(
+    systolic = as.numeric(systolic),
+    diastolic = as.numeric(diastolic),
+    MAP = (2 * diastolic + systolic) / 3
+  )
+
+sleep <- subset(sleep, select = -c(person_id, systolic, diastolic))
+
+glimpse(sleep)
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(ggthemes)
+library(car)
+```
+
+```{r}
+full_model <- lm(sleep_duration ~., sleep)
+summary(full_model)
+```
+
+### Outliers
+
+```{r}
+plot(full_model)
+```
+
+```{r}
+# Calculate Cook's Distance
+cooks_d <- cooks.distance(full_model)
+summary(cooks_d)
+
+# Threshold
+n <- nrow(sleep)
+cooks_threshold <- 4 / n
+
+# Basic Cook's Distance plot
+plot(cooks_d, type = "h", 
+     main = "Cook's Distance", 
+     ylab = "Cook's D", 
+     xlab = "Observation", 
+     col = "blue")
+
+# Add horizontal threshold line
+abline(h = cooks_threshold, col = "red", lty = 2)
+
+# Label points above threshold
+high_cooks <- which(cooks_d > cooks_threshold)
+
+# Add text labels
+text(x = high_cooks, 
+     y = cooks_d[high_cooks], 
+     labels = high_cooks, 
+     pos = 3, 
+     cex = 0.8, 
+     col = "red")
+
+# Found that obs 6, 7, 107 were pretty large
+
+```
+
+
+```{r}
+# Look into obs 6, 7, 107
+sleep[6,]
+sleep[7,]
+sleep[107,]
+
+# They all seem pretty valid
+```
+
+### Multicollinearity
+
+```{r}
+library(car)
+
+vif(full_model)
+
+#GVIF high for occupation, stress, bmi category
+#GVIF^ high for quality of sleep
+
+
+#stress
+sleep$stress_level_num <- as.numeric(as.factor(sleep$stress_level))
+
+aux_model_stress_level <- lm(stress_level_num ~ gender + age + quality_of_sleep + 
+                    physical_activity_level + occupation + 
+                    bmi_category + heart_rate + daily_steps + 
+                    sleep_disorder + MAP, data = sleep)
+summary(aux_model_stress_level)
+# R^2 .9542 suggest we remove it
+
+#occupation
+sleep$occupation_num <- as.numeric(as.factor(sleep$occupation))
+
+aux_model_occupation <- lm(occupation_num ~ gender + age + quality_of_sleep + 
+                           physical_activity_level + bmi_category + heart_rate + 
+                           daily_steps + sleep_disorder + MAP + stress_level, 
+                           data = sleep)
+
+summary(aux_model_occupation)
+# R^2 around .7232 keep occupation
+
+# BMI
+sleep$bmi_category_num <- as.numeric(as.factor(sleep$bmi_category))
+aux_model_bmi <- lm(bmi_category_num ~ gender + age + quality_of_sleep + 
+                     physical_activity_level + occupation + heart_rate + 
+                     daily_steps + sleep_disorder + MAP + stress_level,
+                     data = sleep)
+
+summary(aux_model_bmi)
+# R^2 around 0.9375
+
+#quality
+sleep$quality_of_sleep_num <- as.numeric(as.factor(sleep$quality_of_sleep))
+aux_model_quality <- lm(quality_of_sleep_num ~ gender + age + physical_activity_level +
+                         occupation + bmi_category + heart_rate + daily_steps +
+                         sleep_disorder + MAP + stress_level,
+                         data = sleep)
+
+summary(aux_model_quality)
+# R^2 around 0.9653
+
+```
+
+## Table of R^2 Auxiliary Model
+```{r}
+library(dplyr)
+
+# Define the full list of predictors (excluding the outcome)
+predictors <- c("stress_level", "gender", "age", "quality_of_sleep",
+                "physical_activity_level", "occupation", "bmi_category",
+                "heart_rate", "daily_steps", "sleep_disorder", "MAP")
+
+# Create a function to fit auxiliary model and return R² and Adjusted R²
+get_aux_model_r2 <- function(var, data) {
+  # Convert response to numeric (safely)
+  data[[paste0(var, "_num")]] <- as.numeric(as.factor(data[[var]]))
+  
+  # Define predictors excluding the variable of interest
+  others <- setdiff(predictors, var)
+  formula <- as.formula(paste(paste0(var, "_num"), "~", paste(others, collapse = " + ")))
+  
+  # Fit auxiliary model
+  model <- lm(formula, data = data)
+  
+  # Extract R² and Adjusted R²
+  r2 <- summary(model)$r.squared
+  adj_r2 <- summary(model)$adj.r.squared
+  
+  return(data.frame(Variable = var, R_squared = r2, Adjusted_R_squared = adj_r2))
+}
+
+# Apply the function to all predictors
+aux_results <- do.call(rbind, lapply(predictors, get_aux_model_r2, data = sleep))
+
+# Print results
+print(aux_results)
+```
+
+
+```{r}
+
+# get rid of 3 highest aux r^2 adj and high vif scores: BMI and Quality
+model_vif <- lm(sleep_duration ~gender + age + stress_level +  
+                    physical_activity_level + occupation + 
+                    heart_rate + daily_steps + 
+                    sleep_disorder + MAP, data = sleep)
+
+# View the summary
+summary(model_vif)
+
+vif(model_vif)
+```
+
+### Variable Selection w VIF
+```{r}
+
+# 2. Backward Elimination
+model_backward <- step(model_vif, direction = "backward")
+summary(model_backward)
+
+# 3. Forward Selection
+# Define the full scope and a null model
+full_scope <- formula(model_vif)
+null_model <- lm(sleep_duration ~ 1, data = sleep)
+
+model_forward <- step(null_model, scope = full_scope, direction = "forward")
+summary(model_forward)
+
+# 4. Stepwise Selection (both directions)
+model_stepwise <- step(null_model, scope = full_scope, direction = "both")
+summary(model_stepwise)
+
+```
+
+
+# Lasso after VIF and Variable Selection
+```{r}
+
+library(glmnet)
+library(tidyverse)
+library(tidymodels)
+library(tidyr)
+library(car)
+library(caret)
+
+sleep <- subset(sleep, select = -c(bmi_category, quality_of_sleep))
+
+## Split Training/Test Data
+sleep_sp <- sleep %>% initial_split(prop = 0.8, strata=sleep_duration)
+rtrain <- sleep_sp %>% training()
+rtest <- sleep_sp %>% testing()
+
+model0 <- lm(sleep_duration ~ ., data=rtrain)
+summary(model0)
+
+## Regularization
+xrtrain <- rtrain %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtrain <- rtrain$sleep_duration
+
+xrtest  <- rtest %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtest  <- rtest$sleep_duration
+
+modelL <- glmnet(xrtrain, yrtrain)
+plot(modelL,label = TRUE)
+## Df=# of nonzero coefficients, %Dev = % of Deviance explained (like SSR)
+print(modelL)
+## Coefficient for a certain lambda
+coef.glmnet(modelL, s= 0.1)
+
+
+## Cross-Validation
+## nfolds = # of groups ex) 20
+## Regression with 19 groups and test with 1 group
+cvmodelL <- cv.glmnet(xrtrain, yrtrain, type.measure = "mse", nfolds = 20)
+coef.glmnet(modelL, s= cvmodelL$lambda.min)
+plot(cvmodelL)
+
+coef_min_lambda <- coef.glmnet(modelL, s = cvmodelL$lambda.min)
+
+# Convert to a tidy data frame and filter out zero coefficients
+nonzero_coefs <- as.matrix(coef_min_lambda)
+nonzero_coefs_df <- data.frame(
+  Variable = rownames(nonzero_coefs),
+  Coefficient = nonzero_coefs[, 1]
+)
+
+# View coefficients that were shrunk to zero
+zeroed_out <- nonzero_coefs_df %>% filter(Coefficient == 0)
+print(zeroed_out)
+
+# gender, occupation and sleep disorder zeroed out and age is insignificant
+
+model_LASSO <- lm(sleep_duration ~ stress_level +  
+                    physical_activity_level + 
+                    heart_rate + daily_steps + 
+                    MAP, data = sleep)
+summary(model_LASSO)
+
+```
+## Ridge if neccessary
+
+```{r}
+modelR <- glmnet(xrtrain, yrtrain, alpha=0)
+plot(modelR,label = TRUE)
+## Df=# of nonzero coefficients, %Dev = % of Deviance explained (like SSR)
+print(modelR)
+## Coefficient for a certain lambda
+coef.glmnet(modelR, s= 0.1) ## s= lambda value (any)
+
+## CrossValidation
+cvmodelR <- cv.glmnet(xrtrain, yrtrain, alpha=0, type.measure = "mse", nfolds = 20)
+plot(cvmodelR)
+log(cvmodelR$lambda.min)
+```
+
