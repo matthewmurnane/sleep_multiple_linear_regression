@@ -12,8 +12,8 @@ library(car)
 ```
 
 ```{r}
-full_model <- lm(sleep_duration ~., sleep)
-summary(full_model)
+full_model <- lm(sleep_duration ~ ., data = sleep)
+full_model_summary <- summary(full_model)
 ```
 
 ### Outliers

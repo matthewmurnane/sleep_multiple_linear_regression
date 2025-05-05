@@ -137,11 +137,10 @@ Running the full model we can see that our omnibus hypothesis test has an F-stat
 
 ```{r}
 full_model <- lm(sleep_duration ~ ., data = sleep)
+full_model_summary <- summary(full_model)
 
-model_summary <- summary(full_model)
-
-model_stats <- tibble::tibble(`F-statistic` = round(model_summary$fstatistic[1], 2),
-                              `Adjusted R²` = round(model_summary$adj.r.squared, 3),
+model_stats <- tibble::tibble(`F-statistic` = round(full_model_summary$fstatistic[1], 2),
+                              `Adjusted R²` = round(full_model_summary$adj.r.squared, 3),
                               `Residual Sum of Squares` = round(sum(residuals(full_model)^2), 2),
                               `Total Sum of Squares` = round(sum((sleep$sleep_duration - mean(sleep$sleep_duration))^2), 2))
 
@@ -168,6 +167,11 @@ p5 / p6
 ```
 
 As far as assumptions go heteroskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality.
+
+```{r}
+kable(vif(full_model))
+```
+
 
 Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw
 
