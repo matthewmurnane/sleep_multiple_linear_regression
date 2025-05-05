@@ -54,7 +54,11 @@ sleep <- sleep %>%
 
 \vspace{0.5em}
 
-Sleep is important and people are always wondering how they can improve their sleep. Everyone knows how annoying it is to be tossing and turning all night long. Lifestyle and general health seem to be important indicators. In this report we explore a sleep data set and see what lifestyle and health variables have a significant relationship with sleep duration.
+Sleep is an important contributor to our well-being and is deeply connected to our physical health, and cognitive function. However we often find that many individuals struggle with getting long hours sleep, often finding themselves tossing and turning throughout the night. Consequently, there is now a growing interest in understanding the lifestyle and bio metric factors that influence sleep patterns and duration. General knowledge and intuition suggest factors such as physical activity and occupational stress may influence sleep duration. Therefore, our goal is to use linear regression techniques to quantify exactly how much these factors reduce or extend sleep time.
+
+Before, analyzing the data set, we expect a number of our indicators to contribute significantly to sleep duration. In general, we would assume that occupation will play an important role in analyzing our data as a more stressful work environment may hinder sleep patterns and disturb the body's natural sleep cycle. Additionally, we may expect that higher levels of physical activity will work in tandem with deeper and longer duration of sleep.
+
+Also, we seek to filter through and find the most important variables in our analysis. We expect that variables like Daily Steps and Physical Activity Level will be a contribute to sleep duration in a similar manner. In our data set, we have numerous combinations of variables that are alike in this way and therefore we want to reduce our factors to give the most precise and simple model possible.
 
 \vspace{1.5em}
 
