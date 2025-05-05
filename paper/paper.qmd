@@ -82,8 +82,7 @@ We had no missing data in the data set but we did have to make a mutation using 
 
 For transparency it should be noted that the data is synthetic. Even though it is synthetic we still treat the analysis and report as if it was real data.
 
-
-\vspace{1.5em}
+\newpage
 
 \noindent\textbf{\Large Exploratory Data Analysis}
 
@@ -134,13 +133,11 @@ knitr::kable(corr_matrix, caption = "Correlation Matrix of Continuous Varaibles"
 
 \noindent\textbf{\Large Full Model}
 
-Running the full model we can see that our omnibus hypothesis test has an F-stat of 426.6 which is greater than the 99th percentile for our F-distribution, $F_{31,342,.99}=$ `r round(qf(0.99, 31, 342),2)`. So we reject the null that all coefficients are 0. We also see a high Adjusted $R^2$ and very low Residual Sum of Squares compared to the Total Sum of Squares. 
+Running the full model we can see that our omnibus hypothesis test has an F-stat of 426.6 which is greater than the 99th percentile for our F-distribution, $F_{31,342,.99}=$ `r round(qf(0.99, 31, 342),2)`. So we reject the null that all coefficients are 0. We also see a high Adjusted $R^2$ and very low Residual Sum of Squares compared to the Total Sum of Squares.
 
 ```{r}
-# Fit the model
 full_model <- lm(sleep_duration ~ ., data = sleep)
 
-# Get summary
 model_summary <- summary(full_model)
 
 model_stats <- tibble::tibble(`F-statistic` = round(model_summary$fstatistic[1], 2),
@@ -151,13 +148,9 @@ model_stats <- tibble::tibble(`F-statistic` = round(model_summary$fstatistic[1],
 knitr::kable(model_stats, caption = "Full Linear Model Outcome")
 ```
 
-As far as assumptions go heteroskadcity seems to be true and normality might be slightly violated with heavy tails but their is no excessive deviation from normality.
-
 ```{r}
-# Extract model diagnostics
 model_data <- augment(full_model)
 
-# Residuals vs Fitted plot
 p5 <- ggplot(model_data, aes(.fitted, .resid)) +
   geom_point(size = 1) +
   geom_hline(yintercept = 0, linetype = "dashed") +
@@ -165,14 +158,18 @@ p5 <- ggplot(model_data, aes(.fitted, .resid)) +
   labs(title = "Residuals vs Fitted",
        x = "Fitted values", y = "Residuals")
 
-# Q-Q plot
 p6 <- ggplot(model_data, aes(sample = .resid)) +
   stat_qq(size = 1) +
   stat_qq_line() +
   theme_few() +
   labs(title = "Normal Q-Q Plot", x = "Theoretical Quantiles", y = "Sample Quantiles")
 
-# Combine with patchwork
 p5 / p6
 ```
+
+As far as assumptions go heteroskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality.
+
+Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw
+
+
 
