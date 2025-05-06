@@ -37,7 +37,10 @@ sleep <- sleep %>%
   separate(blood_pressure, into = c("systolic", "diastolic"), sep = "/", convert = TRUE)
 
 sleep$stress_level <- as.factor(sleep$stress_level)
-sleep$quality_of_sleep <- as.factor(sleep$quality_of_sleep)
+sleep$gender <- as.factor(sleep$gender)
+sleep$occupation <- as.factor(sleep$occupation)
+sleep$bmi_category <- as.factor(sleep$bmi_category)
+sleep$sleep_disorder <- as.factor(sleep$sleep_disorder)
 
 sleep <- sleep %>%
   mutate(systolic = as.numeric(systolic),
@@ -146,6 +149,7 @@ model_stats <- tibble::tibble(`F-statistic` = round(full_model_summary$fstatisti
 
 knitr::kable(model_stats, caption = "Full Linear Model Outcome")
 ```
+We also saw all coefficients have standard error less than one.
 
 ```{r}
 model_data <- augment(full_model)
@@ -166,14 +170,95 @@ p6 <- ggplot(model_data, aes(sample = .resid)) +
 p5 / p6
 ```
 
-As far as assumptions go heteroskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality.
+As far as assumptions go heteroskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality. We will explore multicollinearity and outliers next.
 
 ```{r}
 kable(vif(full_model))
 ```
-
+`age` and `quality_of_sleep` have $\text{GVIF}^{2\cdot\text{DF}} > 5$. We may want to explore Lasso to deal with this.
 
 Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw
+
+```{r}
+#Values of Interest
+leverage <- hatvalues(full_model)
+studentized <- rstudent(full_model)
+dffits_vals <- dffits(full_model)
+cooks_d <- cooks.distance(full_model)
+
+diagnostics <- data.frame(Leverage = leverage,
+                          Studentized = studentized,
+                          DFFITS = dffits_vals,
+                          Cooks_Distance = cooks_d)
+
+#Thresh hold
+n <- nrow(sleep)
+p <- length(coef(full_model)) - 1
+leverage_threshold <- 2 * (p + 1) / n
+studentized_threshold <- 2
+cooks_threshold <- 1
+
+# Find points exceeding thresholds
+high_leverage <- which(leverage > leverage_threshold)
+high_studentized <- which(abs(studentized) > studentized_threshold)
+high_cooks <- which(cooks_d > cooks_threshold)
+
+# Unique indices that exceed any threshold
+suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
+
+sleep[suspicious_indices,]
+```
+
+
+
+```{r}
+leverage <- hatvalues(full_model)
+studentized <- rstudent(full_model)
+dffits_vals <- dffits(full_model)
+cooks_d <- cooks.distance(full_model)
+
+diagnostics <- data.frame(Leverage = leverage,
+                          Studentized = studentized,
+                          DFFITS = dffits_vals,
+                          Cooks_Distance = cooks_d)
+
+n <- nrow(sleep)
+p <- length(coef(full_model)) - 1
+leverage_threshold <- 2 * (p + 1) / n
+studentized_threshold <- 2
+cooks_threshold <- 1
+
+# Find points exceeding thresholds
+high_leverage <- which(leverage > leverage_threshold)
+high_studentized <- which(abs(studentized) > studentized_threshold)
+high_cooks <- which(cooks_d > cooks_threshold)
+
+# Unique indices that exceed any threshold
+suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
+
+# Return threshold values, diagnostic preview, and rows flagged as potential outliers
+list(
+  leverage_threshold = leverage_threshold,
+  studentized_threshold = studentized_threshold,
+  cooks_threshold = cooks_threshold,
+  diagnostics_preview = head(diagnostics, 10),
+  flagged_rows = diagnostics[suspicious_indices, ])
+
+# Remove the suspicious rows
+sleep_clean <- sleep[-suspicious_indices, ]
+
+# Refit the model excluding suspicious rows 
+full_model_clean <- lm(sleep_duration ~ ., data = sleep_clean)
+
+# Plot diagnostics again on the cleaned model
+par(mfrow = c(2, 2))
+plot(full_model_clean)
+
+# Comparison of model summaries
+summary(full_model)        # Old model (with potential outliers)  R^2  = 0.9592
+summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.9929
+
+```
 
 
 
