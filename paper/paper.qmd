@@ -122,6 +122,7 @@ p4 <- sleep %>%
   theme(axis.title.y = element_text(angle = 90)) &
   labs(y = "Sleep Duration")
 ```
+Visual relationship can be seen for `Sleep Duration` with `Age` and `sleep_duration`. Not so much for `PP` and `daily_steps`. The correlation between our numeric covariates is most notable between `sleep_duration` and `heart_rate`. `age` and `hearts_pressure`
 
 ```{r}
 corr_vars <- sleep %>%
@@ -177,7 +178,9 @@ kable(vif(full_model))
 ```
 `age` and `quality_of_sleep` have $\text{GVIF}^{2\cdot\text{DF}} > 5$. We may want to explore Lasso to deal with this.
 
-Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw
+\newpage
+
+Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw a total of 57 observations that exceeded at least one of these thresholds. Since we can't say that any of these observation are errors we will only remove row 264 because it has a leverage of 1 and `NaN` for the rest. This is clearly a problem observation.
 
 ```{r}
 #Values of Interest
@@ -206,59 +209,22 @@ high_cooks <- which(cooks_d > cooks_threshold)
 # Unique indices that exceed any threshold
 suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
 
-sleep[suspicious_indices,]
+aggregation <- list(leverage_threshold = leverage_threshold,
+                    studentized_threshold = studentized_threshold,
+                    cooks_threshold = cooks_threshold,
+                    flagged_rows = diagnostics[suspicious_indices, ])
 ```
-
-
 
 ```{r}
-leverage <- hatvalues(full_model)
-studentized <- rstudent(full_model)
-dffits_vals <- dffits(full_model)
-cooks_d <- cooks.distance(full_model)
-
-diagnostics <- data.frame(Leverage = leverage,
-                          Studentized = studentized,
-                          DFFITS = dffits_vals,
-                          Cooks_Distance = cooks_d)
-
-n <- nrow(sleep)
-p <- length(coef(full_model)) - 1
-leverage_threshold <- 2 * (p + 1) / n
-studentized_threshold <- 2
-cooks_threshold <- 1
-
-# Find points exceeding thresholds
-high_leverage <- which(leverage > leverage_threshold)
-high_studentized <- which(abs(studentized) > studentized_threshold)
-high_cooks <- which(cooks_d > cooks_threshold)
-
-# Unique indices that exceed any threshold
-suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
-
-# Return threshold values, diagnostic preview, and rows flagged as potential outliers
-list(
-  leverage_threshold = leverage_threshold,
-  studentized_threshold = studentized_threshold,
-  cooks_threshold = cooks_threshold,
-  diagnostics_preview = head(diagnostics, 10),
-  flagged_rows = diagnostics[suspicious_indices, ])
-
-# Remove the suspicious rows
-sleep_clean <- sleep[-suspicious_indices, ]
-
-# Refit the model excluding suspicious rows 
-full_model_clean <- lm(sleep_duration ~ ., data = sleep_clean)
-
-# Plot diagnostics again on the cleaned model
-par(mfrow = c(2, 2))
-plot(full_model_clean)
-
-# Comparison of model summaries
-summary(full_model)        # Old model (with potential outliers)  R^2  = 0.9592
-summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.9929
-
+aggregation$flagged_rows %>% 
+  arrange(desc(Leverage)) %>% 
+  head(n = 1) %>% 
+  kable(digits = 3, caption = "Row with Highest Leverage")
 ```
 
+\noindent\textbf{\Large Updated Model}
 
+```{r}
+sleep_test <- sleep[-264,]
+```
 
