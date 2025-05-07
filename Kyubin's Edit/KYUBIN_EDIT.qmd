@@ -129,7 +129,7 @@ list(
   diagnostics_preview = head(diagnostics, 10),
   flagged_rows = diagnostics[suspicious_indices, ])
 
-# observation 264 has a leverage of 1 
+# observation 264 has a leverage of 1 !
 
 
 # New data set used for model
@@ -202,7 +202,7 @@ library(dplyr)
 # Define the full list of predictors (excluding the outcome)
 predictors <- c("stress_level", "gender", "age", "quality_of_sleep",
                 "physical_activity_level", "occupation", "bmi_category",
-                "heart_rate", "daily_steps", "sleep_disorder", "MAP")
+                "heart_rate", "daily_steps", "sleep_disorder", "PP")
 
 # Create a function to fit auxiliary model and return R² and Adjusted R²
 get_aux_model_r2 <- function(var, data) {
@@ -224,7 +224,7 @@ get_aux_model_r2 <- function(var, data) {
 }
 
 # Apply the function to all predictors
-aux_results <- do.call(rbind, lapply(predictors, get_aux_model_r2, data = sleep))
+aux_results <- do.call(rbind, lapply(predictors, get_aux_model_r2, data = sleep_test))
 
 # Print results
 print(aux_results)
@@ -233,11 +233,11 @@ print(aux_results)
 
 ```{r}
 
-# get rid of 3 highest aux r^2 adj and high vif scores: BMI and Quality
-model_vif <- lm(sleep_duration ~gender + age + stress_level +  
+# get rid of 3 highest aux r^2 adj and high VIF scores: Age and Quality of sleep
+model_vif <- lm(sleep_duration ~gender + bmi_category + stress_level +  
                     physical_activity_level + occupation + 
                     heart_rate + daily_steps + 
-                    sleep_disorder + MAP, data = sleep)
+                    sleep_disorder + PP, data = sleep_test)
 
 # View the summary
 summary(model_vif)
