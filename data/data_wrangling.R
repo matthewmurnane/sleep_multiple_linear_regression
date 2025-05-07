@@ -19,7 +19,7 @@ sleep <- sleep %>%
     MAP = (2 * diastolic + systolic) / 3
   )
 
-sleep <- sleep %>% 
-  select(!c(person_id, systolic, diastolic))
+sleep <- subset(sleep, select = -c(person_id, systolic, diastolic))
+
 
 glimpse(sleep)
