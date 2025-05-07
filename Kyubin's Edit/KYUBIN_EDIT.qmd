@@ -7,11 +7,10 @@ format: pdf
 library(readr)
 library(tidyverse)
 library(janitor)
+library(dplyr)
 
-sleep <- read_csv("data/Sleep_health_and_lifestyle_dataset.csv") %>% 
+sleep <- read_csv("../data/Sleep_health_and_lifestyle_dataset.csv") %>%  
   clean_names()
-
-glimpse(sleep)
 
 sleep <- sleep %>%
   separate(blood_pressure, into = c("systolic", "diastolic"), sep = "/", convert = TRUE)
@@ -23,15 +22,12 @@ sleep$bmi_category <- as.factor(sleep$bmi_category)
 sleep$sleep_disorder <- as.factor(sleep$sleep_disorder)
 
 sleep <- sleep %>%
-  mutate(
-    systolic = as.numeric(systolic),
-    diastolic = as.numeric(diastolic),
-    MAP = (2 * diastolic + systolic) / 3
-  )
+  mutate(systolic = as.numeric(systolic),
+         diastolic = as.numeric(diastolic),
+         PP = systolic-diastolic)
 
-sleep <- subset(sleep, select = -c(person_id, systolic, diastolic))
-
-glimpse(sleep)
+sleep <- sleep %>%
+  dplyr::select(!c(person_id, systolic, diastolic))
 
 ```
 
