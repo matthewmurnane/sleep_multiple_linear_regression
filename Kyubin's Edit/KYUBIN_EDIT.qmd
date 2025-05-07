@@ -233,11 +233,11 @@ print(aux_results)
 
 ```{r}
 
-# get rid of 3 highest aux r^2 adj and high VIF scores: Age and Quality of sleep
-model_vif <- lm(sleep_duration ~gender + bmi_category + stress_level +  
+# get rid of 2 highest aux r^2 adj and high VIF scores: Age and Quality of Sleep
+model_vif <- lm(sleep_duration ~gender + bmi_category  +
                     physical_activity_level + occupation + 
                     heart_rate + daily_steps + 
-                    sleep_disorder + PP, data = sleep_test)
+                    sleep_disorder + PP + stress_level, data = sleep_test)
 
 # View the summary
 summary(model_vif)
@@ -255,7 +255,7 @@ summary(model_backward)
 # 3. Forward Selection
 # Define the full scope and a null model
 full_scope <- formula(model_vif)
-null_model <- lm(sleep_duration ~ 1, data = sleep)
+null_model <- lm(sleep_duration ~ 1, data = sleep_test)
 
 model_forward <- step(null_model, scope = full_scope, direction = "forward")
 summary(model_forward)
@@ -269,6 +269,11 @@ summary(model_stepwise)
 
 # Lasso after VIF and Variable Selection
 ```{r}
+
+
+
+#### ALL THE CODE BELOW THIS HAS NOT BEEN EDITED! STILL NEED TO CHANGE "sleep" TO "sleep_test" AND CHANGE "bmi_category" TO "age" ####
+
 
 library(glmnet)
 library(tidyverse)
