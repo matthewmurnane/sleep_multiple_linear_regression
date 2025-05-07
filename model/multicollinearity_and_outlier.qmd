@@ -73,11 +73,11 @@ summary(full_model_clean)  # New model (without potential outliers)  R^2  = 0.99
 
 
 ```{r}
-sleep[204,]
+sleep[264,]
 ```
 
 ```{r}
-sleep_new <- sleep[-204,]
+sleep_new <- sleep[-264,]
 full_model_new <- lm(sleep_duration~.,data = sleep_new)
 summary(full_model_new)
 
