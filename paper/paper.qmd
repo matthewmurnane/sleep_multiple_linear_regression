@@ -360,6 +360,9 @@ final_model_stats <- tibble::tibble(`F-statistic` = round(final_model_summary$fs
                               `Total Sum of Squares` = round(sum((sleep_test_final$sleep_duration-mean(sleep_test_final$sleep_duration))^2), 2))
 
 knitr::kable(final_model_stats, caption = "Final Model Statistics")
+
+final_model <- lm(sleep_duration ~ ., data = sleep_test_final)
+summary(final_model)
 ```
 
 \begin{center}
