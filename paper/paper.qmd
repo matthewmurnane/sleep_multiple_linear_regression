@@ -171,7 +171,7 @@ p6 <- ggplot(model_data, aes(sample = .resid)) +
 p5 / p6
 ```
 
-As far as assumptions go homoskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality. We will explore multicollinearity and outliers next.
+As far as assumptions go homoscedasticity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality. We will explore multicollinearity and outliers next.
 
 ```{r}
 kable(vif(full_model))
