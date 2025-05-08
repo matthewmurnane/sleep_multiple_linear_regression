@@ -286,7 +286,7 @@ selection_table <- data.frame(
 kable(selection_table, caption = "Variable Selection")
 ```
 
-For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero.
+For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero. Optimal lambda value was 0.0009622.
 
 ```{r include=FALSE}
 set.seed(510)
@@ -335,6 +335,16 @@ nonzero_coefs_df <- data.frame(
 ```{r}
 kable(nonzero_coefs_df, digits = 4, caption = "Non-Zero Coefficients from LASSO (Selected by Cross-Validation)",
       row.names = FALSE)
+
+# Create a tibble with the optimal lambda
+lambda_table <- tibble(
+  Description = "Optimal lambda (lambda.min)",
+  Value = cvmodelL$lambda.min
+)
+
+# Display in kable format
+kable(lambda_table, caption = "Optimal Lambda from Cross-Validation")
+
 ```
 
 ```{r}
@@ -355,3 +365,34 @@ knitr::kable(final_model_stats, caption = "Final Model Statistics")
 \begin{center}
 \Large\textbf{\large Discussion}
 \end{center}
+
+```{r include=FALSE}
+library(caret)
+library(knitr)
+library(dplyr)
+
+set.seed(510)
+
+# Set up 10-fold cross-validation
+train_control <- trainControl(method = "cv", number = 10)
+
+# 1. Initial model using full dataset
+cv_full <- train(sleep_duration ~ ., data = sleep, method = "lm", trControl = train_control)
+
+# 2. Final model using sleep_test_final dataset
+cv_final <- train(sleep_duration ~ ., data = sleep_test_final, method = "lm", trControl = train_control)
+
+# 3. Extract RMSE and R-squared
+cv_results <- tibble(
+  Model = c("Initial Model", "Final Model"),
+  RMSE = c(cv_full$results$RMSE, cv_final$results$RMSE),
+  Rsquared = c(cv_full$results$Rsquared, cv_final$results$Rsquared)
+)
+
+```
+
+```{r}
+# 4. Display as kable table
+kable(cv_results, caption = "10-Fold Cross-Validation Results for Initial and Final Models")
+```
+
