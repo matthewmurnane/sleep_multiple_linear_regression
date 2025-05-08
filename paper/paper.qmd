@@ -283,6 +283,8 @@ kable(selection_table, caption = "Variable Selection")
 For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero.
 
 ```{r include=FALSE}
+set.seed(510)
+
 ## Split Training/Test Data
 sleep_sp <- sleep_test %>% initial_split(prop = 0.8, strata=sleep_duration)
 rtrain <- sleep_sp %>% training()
@@ -327,4 +329,12 @@ nonzero_coefs_df <- data.frame(
 ```{r}
 kable(nonzero_coefs_df, digits = 4, caption = "Non-Zero Coefficients from LASSO (Selected by Cross-Validation)",
       row.names = FALSE)
+```
+
+```{r}
+sleep_test_final <- sleep_test_vif %>%
+  dplyr::select(!c(gender, occupation, bmi_category, sleep_disorder, daily_steps))
+
+model_final <- lm(sleep_duration ~., sleep_test_final)
+summary(model_final)
 ```
