@@ -1,0 +1,375 @@
+---
+title: "Multiple Linear Regression on Sleep Data"
+author:
+  - name: Ethan Newcomb
+  - name: Kyubin Im
+  - name: Matthew Murnane
+format:
+  pdf:
+    mainfont: "Times New Roman"
+indent: true
+fontsize: "12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE)
+#Packages
+library(tidyverse)
+library(dplyr)
+library(ggthemes)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+library(car)
+library(MASS)
+library(readr)
+library(janitor)
+library(patchwork)
+library(broom)
+```
+
+```{r include=FALSE}
+#Data Wrangling Code
+sleep <- read_csv("../data/Sleep_health_and_lifestyle_dataset.csv") %>%  
+  clean_names()
+
+sleep <- sleep %>%
+  separate(blood_pressure, into = c("systolic", "diastolic"), sep = "/", convert = TRUE)
+
+sleep$stress_level <- as.factor(sleep$stress_level)
+sleep$gender <- as.factor(sleep$gender)
+sleep$occupation <- as.factor(sleep$occupation)
+sleep$bmi_category <- as.factor(sleep$bmi_category)
+sleep$sleep_disorder <- as.factor(sleep$sleep_disorder)
+
+sleep <- sleep %>%
+  mutate(systolic = as.numeric(systolic),
+         diastolic = as.numeric(diastolic),
+         PP = systolic-diastolic)
+
+sleep <- sleep %>%
+  dplyr::select(!c(person_id, systolic, diastolic))
+```
+
+\newpage
+
+\noindent\textbf{\Large Motivation}
+
+\vspace{0.5em}
+
+Sleep is an important contributor to our well-being and is deeply connected to our physical health, and cognitive function. However we often find that many individuals struggle with getting long hours sleep, often finding themselves tossing and turning throughout the night. Consequently, there is now a growing interest in understanding the lifestyle and bio metric factors that influence sleep patterns and duration. General knowledge and intuition suggest factors such as physical activity and occupational stress may influence sleep duration. Therefore, our goal is to use linear regression techniques to quantify exactly how much these factors reduce or extend sleep time.
+
+Before, analyzing the data set, we expect a number of our indicators to contribute significantly to sleep duration. In general, we would assume that occupation will play an important role in analyzing our data as a more stressful work environment may hinder sleep patterns and disturb the body's natural sleep cycle. Additionally, we may expect that higher levels of physical activity will work in tandem with deeper and longer duration of sleep.
+
+Also, we seek to filter through and find the most important variables in our analysis. We expect that variables like Daily Steps and Physical Activity Level will be a contribute to sleep duration in a similar manner. In our data set, we have numerous combinations of variables that are alike in this way and therefore we want to reduce our factors to give the most precise and simple model possible.
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large About the Data}
+
+```{r}
+#Table 1: Variables in Sleep
+variable_names <- matrix(c(
+  "Gender", "Age", "Occupation",
+  "Sleep Duration (hours)", "Quality of Sleep (scale: 1–10)", "Physical Activity Level (minutes/day)",
+  "Stress Level (scale: 1–10)", "BMI Category", "PP (Pulse Pressure)",
+  "Heart Rate (bpm)", "Daily Steps", "Sleep Disorder"
+), ncol = 3, byrow = TRUE)
+
+kable(variable_names, col.names = NULL, caption = "Variables From Our Data")
+```
+
+Sleep Duration is a continuous variable and will be our response variable. The rest will be our covariates. Gender, Occupation, Quality of Sleep, Stress Level, BMI Category and Sleep Disorder are categorical variables. Physical Activity, PP, agem and Daily steps are continuous variables. We have a total of 374 observations.
+
+We had no missing data in the data set but we did have to make a mutation using `dplyr`. In the original data set there was a blood pressure variable that was encoded as a character but was a ratio, e.g. "$\frac{120}{80}$". We separated the blood pressure variable into two: Systolic and Diastolic. These two we suspected to be highly correlated but did not want to just drop one or the other. We had options of combining the two into something meaningful. One was Pulse Pressure (PP), which is calculated as $\text{PP}=\text{systolic}-\text{diastolic}$. PP is the force of the hearts contraction on the arteries. The other is called Mean Arterial Pressure (MAP), which is calculated as $\text{MAP}=\frac{\text{systolic}\cdot\text{diastolic}^2}{3}$. MAP is the average blood pressure throughout a cardiac cycle. We decided on PP because it was simpler to calculate and understand.
+
+For transparency it should be noted that the data is synthetic. Even though it is synthetic we still treat the analysis and report as if it was real data.
+
+\newpage
+
+\noindent\textbf{\Large Exploratory Data Analysis}
+
+```{r}
+p1 <- sleep %>% 
+  ggplot() +
+  geom_jitter(aes(x = age, y = sleep_duration), size = .5) +
+  theme_few() +
+  labs(x = "Age", y = NULL)
+
+p2 <- sleep %>% 
+  ggplot() +
+  geom_jitter(aes(x = PP, y = sleep_duration), size = .5) +
+  theme_few() +
+  labs(x = "Pulse Pressure", y = NULL)
+
+p3 <- sleep %>% 
+  ggplot() +
+  geom_jitter(aes(x = heart_rate, y = sleep_duration), size = .5) +
+  theme_few() +
+  labs(x = "Heart Rate", y = NULL)
+
+p4 <- sleep %>% 
+  ggplot() +
+  geom_jitter(aes(x = daily_steps, y = sleep_duration), size = .5) +
+  theme_few() +
+  labs(x = "Daily Steps", y = NULL)
+
+(p1 + p2) / (p3 + p4) +
+  plot_annotation(
+    title = "Sleep Duration vs Continuous Variables",
+    theme = theme(plot.title = element_text(size = 16, hjust = 0.5))
+  ) &
+  theme(axis.title.y = element_text(angle = 90)) &
+  labs(y = "Sleep Duration")
+```
+Visual relationship can be seen for `Sleep Duration` with `Age` and `sleep_duration`. Not so much for `PP` and `daily_steps`. The correlation between our numeric covariates is most notable between `sleep_duration` and `heart_rate`. `age` and `hearts_pressure`
+
+```{r}
+corr_vars <- sleep %>%
+  dplyr::select(sleep_duration, age, PP, heart_rate, daily_steps)
+
+corr_matrix <- round(cor(corr_vars, use = "complete.obs"), 2)
+
+knitr::kable(corr_matrix, caption = "Correlation Matrix of Continuous Varaibles")
+```
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large Full Model}
+
+\vspace{0.5em}
+
+Running the full model we can see that our omnibus hypothesis test has an F-stat of 426.6 which is greater than the 99th percentile for our F-distribution, $F_{31,342,.99}=$ `r round(qf(0.99, 31, 342),2)`. So we reject the null that all coefficients are 0. We also see a high Adjusted $R^2$ and very low Residual Sum of Squares compared to the Total Sum of Squares.
+
+```{r}
+full_model <- lm(sleep_duration ~ ., data = sleep)
+full_model_summary <- summary(full_model)
+
+model_stats <- tibble::tibble(`F-statistic` = round(full_model_summary$fstatistic[1], 2),
+                              `Adjusted R²` = round(full_model_summary$adj.r.squared, 3),
+                              `Residual Sum of Squares` = round(sum(residuals(full_model)^2), 2),
+                              `Total Sum of Squares` = round(sum((sleep$sleep_duration - mean(sleep$sleep_duration))^2), 2))
+
+knitr::kable(model_stats, caption = "Full Linear Model Outcome")
+```
+We also saw all coefficients have standard error less than one.
+
+```{r}
+model_data <- augment(full_model)
+
+p5 <- ggplot(model_data, aes(.fitted, .resid)) +
+  geom_point(size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  theme_few() +
+  labs(title = "Residuals vs Fitted",
+       x = "Fitted values", y = "Residuals")
+
+p6 <- ggplot(model_data, aes(sample = .resid)) +
+  stat_qq(size = 1) +
+  stat_qq_line() +
+  theme_few() +
+  labs(title = "Normal Q-Q Plot", x = "Theoretical Quantiles", y = "Sample Quantiles")
+
+p5 / p6
+```
+
+As far as assumptions go homoskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality. We will explore multicollinearity and outliers next.
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large Regression Diagnostics: Outliers and Multicollinearity}
+
+\vspace{0.5em}
+
+Looking now towards outliers, we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw a total of 57 observations that exceeded at least one of these thresholds. Since we can't say that any of these observation are errors we will only remove row 264 because it has a leverage of 1 and `NaN` for the rest. This is clearly a problem observation.
+
+```{r}
+#Values of Interest
+leverage <- hatvalues(full_model)
+studentized <- rstudent(full_model)
+dffits_vals <- dffits(full_model)
+cooks_d <- cooks.distance(full_model)
+
+diagnostics <- data.frame(Leverage = leverage,
+                          Studentized = studentized,
+                          DFFITS = dffits_vals,
+                          Cooks_Distance = cooks_d)
+
+#Thresh hold
+n <- nrow(sleep)
+p <- length(coef(full_model)) - 1
+leverage_threshold <- 2 * (p + 1) / n
+studentized_threshold <- 2
+cooks_threshold <- 1
+
+# Find points exceeding thresholds
+high_leverage <- which(leverage > leverage_threshold)
+high_studentized <- which(abs(studentized) > studentized_threshold)
+high_cooks <- which(cooks_d > cooks_threshold)
+
+# Unique indices that exceed any threshold
+suspicious_indices <- sort(unique(c(high_leverage, high_studentized, high_cooks)))
+
+aggregation <- list(leverage_threshold = leverage_threshold,
+                    studentized_threshold = studentized_threshold,
+                    cooks_threshold = cooks_threshold,
+                    flagged_rows = diagnostics[suspicious_indices, ])
+```
+
+```{r}
+aggregation$flagged_rows %>% 
+  arrange(desc(Leverage)) %>% 
+  head(n = 1) %>% 
+  kable(digits = 3, caption = "Row with Highest Leverage")
+```
+
+\newpage
+
+Next, we wanted to take care of multicollinearity after removing observation 264 from the data set. We checked the VIF values for each input covariate and determined which features can be removed. We also set 5 as a threshold for a large VIF value and removed any features that exceed this value. Furthermore, we used the scaled GVIF value, $\text{GVIF}^{1 / (2 \cdot \text{Df})}$, as it allows categorical variables to be numerically compared to continuous variables. From our VIF table, we noticed that `age` and `quality_of_sleep` have $\text{GVIF}^{1 / (2 \cdot \text{Df})} > 5$.
+
+\vspace{0.5em}
+
+```{r}
+sleep_test <- sleep[-264,]
+
+full_model_test<-lm(sleep_duration ~., sleep_test)
+
+library(car)
+
+kable(vif(full_model_test))
+```
+
+\vspace{0.5em}
+
+We removed variables `age` and `quality_of_sleep` and ran a MLR model. Our results showed that the reduced VIF model was very similar to the full model. Adjusted R^2 was essentially unchanged. Therefore, we concluded that `age` and `quality_of_sleep` did not contribute much to the regression analysis because they were linear combinations of other independent variables.
+
+\vspace{0.5em}
+
+```{r include=FALSE}
+
+sleep_test_vif <- sleep_test %>%
+  dplyr::select(!c(age, quality_of_sleep))
+
+full_model_vif <- lm(sleep_duration ~., sleep_test_vif)
+
+```
+
+```{r}
+model_stats_vif <- tibble::tibble(
+  `F-stat.` = round(summary(full_model_vif)$fstatistic[1], 2),
+  `Adjusted R²` = round(summary(full_model_vif)$adj.r.squared, 3),
+  `Residual Sum of Squares` = round(sum(residuals(full_model_vif)^2), 2),
+  `Total Sum of Squares` = round(sum((sleep_test_vif$sleep_duration - mean(sleep_test_vif$sleep_duration))^2), 2))
+  
+
+knitr::kable(model_stats_vif, caption = "Outlier + VIF Model")
+```
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large Variable Selection: Backward, Forward, and Stepwise}
+
+\vspace{0.5em}
+
+In order to avoid overfitting issues, we utilized a greedy algorithmn process to select variables that provided the lowest AIC value. We ran 3 model selection process as discussed in class and recorded the variables selected for each method. We found that all 3 methods took all of our variables in our data set. We knew that AIC penalizes the fitted model for each additional variables taken. Despite this, we saw that all variables were significant. Note that the variable selection process was done after our high VIF variables were removed.
+
+```{r include=FALSE}
+# Load required packages
+library(knitr)
+
+# 1. Model Selection using full_model_vif
+model_backward <- step(full_model_vif, direction = "backward")
+
+# Define full model formula and null model for forward/stepwise
+full_scope <- formula(full_model_vif)
+null_model <- lm(sleep_duration ~ 1, data = sleep)
+
+model_forward <- step(null_model, scope = full_scope, direction = "forward")
+model_stepwise <- step(null_model, scope = full_scope, direction = "both")
+
+# 2. Extract variable names selected by each model
+vars_backward <- attr(terms(model_backward), "term.labels")
+vars_forward <- attr(terms(model_forward), "term.labels")
+vars_stepwise <- attr(terms(model_stepwise), "term.labels")
+
+# 3. Combine all variables that appeared in any model
+all_vars <- sort(unique(c(vars_backward, vars_forward, vars_stepwise)))
+
+# 4. Create a comparison table
+selection_table <- data.frame(
+  Variable = all_vars,
+  Backward = ifelse(all_vars %in% vars_backward, "Yes", "No"),
+  Forward  = ifelse(all_vars %in% vars_forward, "Yes", "No"),
+  Stepwise = ifelse(all_vars %in% vars_stepwise, "Yes", "No")
+)
+
+```
+
+```{r}
+
+kable(selection_table, caption = "Variable Selection")
+
+```
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large Suggested Regression: LASSO}
+
+\vspace{0.5em}
+
+For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero.
+
+```{r include=FALSE}
+
+library(glmnet)
+library(tidyverse)
+library(tidymodels)
+library(tidyr)
+library(car)
+library(caret)
+
+## Split Training/Test Data
+sleep_sp <- sleep_test_vif %>% initial_split(prop = 0.8, strata=sleep_duration)
+rtrain <- sleep_sp %>% training()
+rtest <- sleep_sp %>% testing()
+
+model0 <- lm(sleep_duration ~ ., data=rtrain)
+summary(model0)
+
+## Regularization
+xrtrain <- rtrain %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtrain <- rtrain$sleep_duration
+
+xrtest  <- rtest %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtest  <- rtest$sleep_duration
+
+modelL <- glmnet(xrtrain, yrtrain)
+plot(modelL,label = TRUE)
+## Df=# of nonzero coefficients, %Dev = % of Deviance explained (like SSR)
+print(modelL)
+## Coefficient for a certain lambda
+coef.glmnet(modelL, s= 0.1)
+
+
+## Cross-Validation
+## nfolds = # of groups ex) 20
+## Regression with 19 groups and test with 1 group
+cvmodelL <- cv.glmnet(xrtrain, yrtrain, type.measure = "mse", nfolds = 20)
+coef.glmnet(modelL, s= cvmodelL$lambda.min)
+plot(cvmodelL)
+
+coef_min_lambda <- coef.glmnet(modelL, s = cvmodelL$lambda.min)
+
+# Convert to a tidy data frame and filter out zero coefficients
+nonzero_coefs <- as.matrix(coef_min_lambda)
+nonzero_coefs_df <- data.frame(
+  Variable = rownames(nonzero_coefs),
+  Coefficient = nonzero_coefs[, 1]
+)
+
+```
+
+```{r}
+kable(nonzero_coefs_df, digits = 4, caption = "Non-Zero Coefficients from LASSO (Selected by Cross-Validation)")
+```
+
