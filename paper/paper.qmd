@@ -336,7 +336,7 @@ sleep_test_final <- sleep_test %>%
   dplyr::select(!c(gender, occupation, bmi_category, sleep_disorder, daily_steps))
 
 final_model <- lm(sleep_duration ~., sleep_test_final)
-final_model_summary <- summary(model_final)
+final_model_summary <- summary(final_model)
 
 final_model_stats <- tibble::tibble(`F-statistic` = round(final_model_summary$fstatistic[1], 2),
                               `Adjusted R²` = round(final_model_summary$adj.r.squared, 3),
