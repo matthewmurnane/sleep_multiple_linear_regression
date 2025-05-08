@@ -328,6 +328,8 @@ library(tidyr)
 library(car)
 library(caret)
 
+set.seed(510)
+
 ## Split Training/Test Data
 sleep_sp <- sleep_test_vif %>% initial_split(prop = 0.8, strata=sleep_duration)
 rtrain <- sleep_sp %>% training()
