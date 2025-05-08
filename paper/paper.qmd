@@ -26,6 +26,10 @@ library(readr)
 library(janitor)
 library(patchwork)
 library(broom)
+library(glmnet)
+library(caret)
+library(tidymodels)
+library(rsample)
 ```
 
 ```{r include=FALSE}
@@ -246,14 +250,14 @@ In order to avoid overfitting issues, we utilized a greedy algorithmn process to
 
 ```{r include=FALSE}
 # 1. Model Selection using full_model_vif
-model_backward <- step(test_model, direction = "backward")
+model_backward <- stats::step(test_model, direction = "backward")
 
 # Define full model formula and null model for forward/stepwise
 full_scope <- formula(test_model)
 null_model <- lm(sleep_duration ~ 1, data = sleep_test)
 
-model_forward <- step(null_model, scope = full_scope, direction = "forward")
-model_stepwise <- step(null_model, scope = full_scope, direction = "both")
+model_forward <- stats::step(null_model, scope = full_scope, direction = "forward")
+model_stepwise <- stats::step(null_model, scope = full_scope, direction = "both")
 
 # 2. Extract variable names selected by each model
 vars_backward <- attr(terms(model_backward), "term.labels")
@@ -276,3 +280,51 @@ selection_table <- data.frame(
 kable(selection_table, caption = "Variable Selection")
 ```
 
+For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero.
+
+```{r include=FALSE}
+## Split Training/Test Data
+sleep_sp <- sleep_test %>% initial_split(prop = 0.8, strata=sleep_duration)
+rtrain <- sleep_sp %>% training()
+rtest <- sleep_sp %>% testing()
+
+model0 <- lm(sleep_duration ~ ., data=rtrain)
+summary(model0)
+
+## Regularization
+xrtrain <- rtrain %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtrain <- rtrain$sleep_duration
+
+xrtest  <- rtest %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtest  <- rtest$sleep_duration
+
+modelL <- glmnet(xrtrain, yrtrain)
+plot(modelL,label = TRUE)
+## Df=# of nonzero coefficients, %Dev = % of Deviance explained (like SSR)
+print(modelL)
+## Coefficient for a certain lambda
+coef.glmnet(modelL, s= 0.1)
+
+
+## Cross-Validation
+## nfolds = # of groups ex) 20
+## Regression with 19 groups and test with 1 group
+cvmodelL <- cv.glmnet(xrtrain, yrtrain, type.measure = "mse", nfolds = 20)
+coef.glmnet(modelL, s= cvmodelL$lambda.min)
+plot(cvmodelL)
+
+coef_min_lambda <- coef.glmnet(modelL, s = cvmodelL$lambda.min)
+
+# Convert to a tidy data frame and filter out zero coefficients
+nonzero_coefs <- as.matrix(coef_min_lambda)
+nonzero_coefs_df <- data.frame(
+  Variable = rownames(nonzero_coefs),
+  Coefficient = nonzero_coefs[, 1]
+)
+
+```
+
+```{r}
+kable(nonzero_coefs_df, digits = 4, caption = "Non-Zero Coefficients from LASSO (Selected by Cross-Validation)",
+      row.names = FALSE)
+```
