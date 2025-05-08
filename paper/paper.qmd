@@ -387,6 +387,7 @@ This has important practical benefits: a simpler model enables more efficient an
 In the final model, several predictors emerged as statistically significant at the 5% level, including: Physical Activity Level, Stress Levels 4 through 8, and Pulse Pressure (PP). 
 
 These results align well with our expectations—individuals experiencing higher stress levels or reduced physical activity tend to sleep less. Interestingly, heart rate, while retained in the model, was not statistically significant at the 5% level, suggesting its role may be less direct in predicting sleepduration.
+Based on the final model, individuals expected to have the longest sleep duration are those with high physical activity levels, low stress (level 1), lower heart rate, fewer daily steps, and lower pulse pressure (PP). In particular, physical activity shows a small but positive effect on sleep duration. Alternatively, the worst sleep duration is expected among individuals with very high stress levels (especially level 8), elevated heart rates, high PP, and excessive daily steps. These findings emphasize the importance of stress management and cardiovascular health in promoting better sleep.
 Lastly, 10-fold cross-validation showed that both the full and final models performed well, with the final model achieving only a slight decrease in R² but with a meaningful gain in simplicity. This further supports our choice to recommend the final model as a strong, interpretable, and efficient tool for predicting sleep duration.
 
 
