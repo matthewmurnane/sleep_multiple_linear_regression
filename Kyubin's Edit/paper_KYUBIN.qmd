@@ -137,6 +137,8 @@ knitr::kable(corr_matrix, caption = "Correlation Matrix of Continuous Varaibles"
 
 \noindent\textbf{\Large Full Model}
 
+\vspace{0.5em}
+
 Running the full model we can see that our omnibus hypothesis test has an F-stat of 426.6 which is greater than the 99th percentile for our F-distribution, $F_{31,342,.99}=$ `r round(qf(0.99, 31, 342),2)`. So we reject the null that all coefficients are 0. We also see a high Adjusted $R^2$ and very low Residual Sum of Squares compared to the Total Sum of Squares.
 
 ```{r}
@@ -173,7 +175,11 @@ p5 / p6
 
 As far as assumptions go homoskadcity seems to be true and normality might be slightly violated with heavy tails but there is no excessive deviation from normality. We will explore multicollinearity and outliers next.
 
+\vspace{1.5em}
+
 \noindent\textbf{\Large Regression Diagnostics: Outliers and Multicollinearity}
+
+\vspace{0.5em}
 
 Looking now towards outliers, we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw a total of 57 observations that exceeded at least one of these thresholds. Since we can't say that any of these observation are errors we will only remove row 264 because it has a leverage of 1 and `NaN` for the rest. This is clearly a problem observation.
 
@@ -217,27 +223,38 @@ aggregation$flagged_rows %>%
   kable(digits = 3, caption = "Row with Highest Leverage")
 ```
 
-Next, we want to take care of multicollinearity after removing observation 264 from the data set. We checked the VIF values for each input covariate and determined which features can be removed. We also set 5 as a threshold for a large VIF value and removed any features that exceed this value. Furthermore, we used the scaled GVIF value, $\text{GVIF}^{1 / (2 \cdot \text{Df})}$, as it allows categorical variables to be numerically compared to continuous variables. From our VIF table, we noticed that `age` and `quality_of_sleep` have $\text{GVIF}^{1 / (2 \cdot \text{Df})} > 5$.
+\newpage
+
+Next, we wanted to take care of multicollinearity after removing observation 264 from the data set. We checked the VIF values for each input covariate and determined which features can be removed. We also set 5 as a threshold for a large VIF value and removed any features that exceed this value. Furthermore, we used the scaled GVIF value, $\text{GVIF}^{1 / (2 \cdot \text{Df})}$, as it allows categorical variables to be numerically compared to continuous variables. From our VIF table, we noticed that `age` and `quality_of_sleep` have $\text{GVIF}^{1 / (2 \cdot \text{Df})} > 5$.
+
+\vspace{0.5em}
 
 ```{r}
 sleep_test <- sleep[-264,]
 
 full_model_test<-lm(sleep_duration ~., sleep_test)
-summary(full_model_test)
 
 library(car)
 
 kable(vif(full_model_test))
 ```
 
-We removed variables `age` and `quality_of_sleep` and ran a MLR model. Our results showed that the results from reduced VIF model was in very similar to the full model. Adjusted R^2 was essentially unchanged. Therefore, we concluded that `age` and `quality_of_sleep` did not contribute much to the regression analysis because they were linear combinations of other independent variables.
+\vspace{0.5em}
 
-```{r}
+We removed variables `age` and `quality_of_sleep` and ran a MLR model. Our results showed that the reduced VIF model was very similar to the full model. Adjusted R^2 was essentially unchanged. Therefore, we concluded that `age` and `quality_of_sleep` did not contribute much to the regression analysis because they were linear combinations of other independent variables.
+
+\vspace{0.5em}
+
+```{r include=FALSE}
+
 sleep_test_vif <- sleep_test %>%
   dplyr::select(!c(age, quality_of_sleep))
 
 full_model_vif <- lm(sleep_duration ~., sleep_test_vif)
 
+```
+
+```{r}
 model_stats_vif <- tibble::tibble(
   `F-stat.` = round(summary(full_model_vif)$fstatistic[1], 2),
   `Adjusted R²` = round(summary(full_model_vif)$adj.r.squared, 3),
@@ -246,6 +263,113 @@ model_stats_vif <- tibble::tibble(
   
 
 knitr::kable(model_stats_vif, caption = "Outlier + VIF Model")
+```
 
+\vspace{1.5em}
+
+\noindent\textbf{\Large Variable Selection: Backward, Forward, and Stepwise}
+
+\vspace{0.5em}
+
+In order to avoid overfitting issues, we utilized a greedy algorithmn process to select variables that provided the lowest AIC value. We ran 3 model selection process as discussed in class and recorded the variables selected for each method. We found that all 3 methods took all of our variables in our data set. We knew that AIC penalizes the fitted model for each additional variables taken. Despite this, we saw that all variables were significant. Note that the variable selection process was done after our high VIF variables were removed.
+
+```{r include=FALSE}
+# Load required packages
+library(knitr)
+
+# 1. Model Selection using full_model_vif
+model_backward <- step(full_model_vif, direction = "backward")
+
+# Define full model formula and null model for forward/stepwise
+full_scope <- formula(full_model_vif)
+null_model <- lm(sleep_duration ~ 1, data = sleep)
+
+model_forward <- step(null_model, scope = full_scope, direction = "forward")
+model_stepwise <- step(null_model, scope = full_scope, direction = "both")
+
+# 2. Extract variable names selected by each model
+vars_backward <- attr(terms(model_backward), "term.labels")
+vars_forward <- attr(terms(model_forward), "term.labels")
+vars_stepwise <- attr(terms(model_stepwise), "term.labels")
+
+# 3. Combine all variables that appeared in any model
+all_vars <- sort(unique(c(vars_backward, vars_forward, vars_stepwise)))
+
+# 4. Create a comparison table
+selection_table <- data.frame(
+  Variable = all_vars,
+  Backward = ifelse(all_vars %in% vars_backward, "Yes", "No"),
+  Forward  = ifelse(all_vars %in% vars_forward, "Yes", "No"),
+  Stepwise = ifelse(all_vars %in% vars_stepwise, "Yes", "No")
+)
+
+```
+
+```{r}
+
+kable(selection_table, caption = "Variable Selection")
+
+```
+
+\vspace{1.5em}
+
+\noindent\textbf{\Large Suggested Regression: LASSO}
+
+\vspace{0.5em}
+
+For our suggested regression, we used LASSO regression. We hoped to extract the most import input features to achieve a simple yet powerful model. To find the optimal $\lambda$ or the regularization parameter, we used a cross-validation process by splitting our data set: train = 80%. We saw that `gender`, `occupation`, `bmi_category`, and `sleep_disorder` converged to zero.
+
+```{r include=FALSE}
+
+library(glmnet)
+library(tidyverse)
+library(tidymodels)
+library(tidyr)
+library(car)
+library(caret)
+
+## Split Training/Test Data
+sleep_sp <- sleep_test_vif %>% initial_split(prop = 0.8, strata=sleep_duration)
+rtrain <- sleep_sp %>% training()
+rtest <- sleep_sp %>% testing()
+
+model0 <- lm(sleep_duration ~ ., data=rtrain)
+summary(model0)
+
+## Regularization
+xrtrain <- rtrain %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtrain <- rtrain$sleep_duration
+
+xrtest  <- rtest %>% dplyr::select(-sleep_duration) %>% as.matrix()
+yrtest  <- rtest$sleep_duration
+
+modelL <- glmnet(xrtrain, yrtrain)
+plot(modelL,label = TRUE)
+## Df=# of nonzero coefficients, %Dev = % of Deviance explained (like SSR)
+print(modelL)
+## Coefficient for a certain lambda
+coef.glmnet(modelL, s= 0.1)
+
+
+## Cross-Validation
+## nfolds = # of groups ex) 20
+## Regression with 19 groups and test with 1 group
+cvmodelL <- cv.glmnet(xrtrain, yrtrain, type.measure = "mse", nfolds = 20)
+coef.glmnet(modelL, s= cvmodelL$lambda.min)
+plot(cvmodelL)
+
+coef_min_lambda <- coef.glmnet(modelL, s = cvmodelL$lambda.min)
+
+# Convert to a tidy data frame and filter out zero coefficients
+nonzero_coefs <- as.matrix(coef_min_lambda)
+nonzero_coefs_df <- data.frame(
+  Variable = rownames(nonzero_coefs),
+  Coefficient = nonzero_coefs[, 1]
+)
+
+```
+
+```{r}
+kable(nonzero_coefs_df, digits = 4, caption = "Non-Zero Coefficients from LASSO (Selected by Cross-Validation)")
 ```
 
