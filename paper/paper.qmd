@@ -178,8 +178,6 @@ kable(vif(full_model))
 ```
 `age` and `quality_of_sleep` have $\text{GVIF}^{2\cdot\text{DF}} > 5$. We may want to explore Lasso to deal with this.
 
-\newpage
-
 Looking now towards outliers we selected observations that had one of following: leverage $> 2\cdot\frac{p+1}{n}$, studentized residual > 2, and a cooks threshold > 1. We saw a total of 57 observations that exceeded at least one of these thresholds. Since we can't say that any of these observation are errors we will only remove row 264 because it has a leverage of 1 and `NaN` for the rest. This is clearly a problem observation.
 
 ```{r}
@@ -224,7 +222,57 @@ aggregation$flagged_rows %>%
 
 \noindent\textbf{\Large Updated Model}
 
+We removed variables `age` and `quality_of_sleep` and ran a MLR model. Our results showed that the reduced VIF model was very similar to the full model. Adjusted R^2 was essentially unchanged. Therefore, we concluded that `age` and `quality_of_sleep` did not contribute much to the regression analysis because they were linear combinations of other independent variables.
+
 ```{r}
 sleep_test <- sleep[-264,]
+
+sleep_test <- sleep_test %>%
+  dplyr::select(!c(age, quality_of_sleep))
+
+
+test_model<-lm(sleep_duration ~., sleep_test)
+test_model_summary <- summary(test_model)
+
+test_model_stats <- tibble::tibble(`F-statistic` = round(test_model_summary$fstatistic[1], 2),
+                              `Adjusted R²` = round(test_model_summary$adj.r.squared, 3),
+                              `Residual Sum of Squares` = round(sum(residuals(test_model)^2), 2),
+                              `Total Sum of Squares` = round(sum((sleep_test$sleep_duration-mean(sleep_test$sleep_duration))^2), 2))
+
+knitr::kable(test_model_stats, caption = "MLR Outcome for")
+```
+
+In order to avoid overfitting issues, we utilized a greedy algorithmn process to select variables that provided the lowest AIC value. We ran 3 model selection process as discussed in class and recorded the variables selected for each method. We found that all 3 methods took all of our variables in our data set. We knew that AIC penalizes the fitted model for each additional variables taken. Despite this, we saw that all variables were significant. Note that the variable selection process was done after our high VIF variables were removed.
+
+```{r include=FALSE}
+# 1. Model Selection using full_model_vif
+model_backward <- step(test_model, direction = "backward")
+
+# Define full model formula and null model for forward/stepwise
+full_scope <- formula(test_model)
+null_model <- lm(sleep_duration ~ 1, data = sleep_test)
+
+model_forward <- step(null_model, scope = full_scope, direction = "forward")
+model_stepwise <- step(null_model, scope = full_scope, direction = "both")
+
+# 2. Extract variable names selected by each model
+vars_backward <- attr(terms(model_backward), "term.labels")
+vars_forward <- attr(terms(model_forward), "term.labels")
+vars_stepwise <- attr(terms(model_stepwise), "term.labels")
+
+# 3. Combine all variables that appeared in any model
+all_vars <- sort(unique(c(vars_backward, vars_forward, vars_stepwise)))
+
+# 4. Create a comparison table
+selection_table <- data.frame(
+  Variable = all_vars,
+  Backward = ifelse(all_vars %in% vars_backward, "Yes", "No"),
+  Forward  = ifelse(all_vars %in% vars_forward, "Yes", "No"),
+  Stepwise = ifelse(all_vars %in% vars_stepwise, "Yes", "No")
+)
+```
+
+```{r}
+kable(selection_table, caption = "Variable Selection")
 ```
 
