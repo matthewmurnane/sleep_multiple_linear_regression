@@ -420,3 +420,50 @@ cv_results <- tibble(
 kable(cv_results, caption = "10-Fold Cross-Validation Results for Initial and Final Models")
 ```
 
+```{r}
+library(knitr)
+library(tibble)
+
+# Create table manually
+final_model_table <- tribble(
+  ~Term, ~Estimate, ~`Standard Error`, ~Significance,
+  "(Intercept)", 14.8555, 0.6299, "***",
+  "physical_activity_level", 0.0158, 0.0015, "***",
+  "stress_level4", -1.3565, 0.0458, "***",
+  "stress_level5", -0.6208, 0.0491, "***",
+  "stress_level6", -0.9042, 0.0600, "***",
+  "stress_level7", -1.3989, 0.0627, "***",
+  "stress_level8", -1.6704, 0.0740, "***",
+  "heart_rate", -0.0401, 0.0059, "***",
+  "daily_steps", -0.0002, 0.0000, "***",
+  "PP", -0.0821, 0.0089, "***"
+)
+
+# Render as kable
+kable(
+  final_model_table,
+  caption = "Final Model Coefficients and Significance",
+  format = "pandoc"
+)
+```
+
+\begin{table}[ht]
+\centering
+\caption{Interpretation of Final Model Coefficients}
+\begin{tabular}{llp{8cm}}
+\toprule
+\textbf{Term} & \textbf{Estimate} & \textbf{Interpretation} \\
+\midrule
+Intercept & 14.86 & Baseline predicted sleep duration (in hours) when all predictors are at reference or zero levels. \\
+Physical Activity Level & 0.0158 & Each unit increase in physical activity is associated with an increase of approximately 0.016 hours (about 1 minute) of sleep. \\
+Stress Level 4 & -1.36 & Individuals with stress level 4 sleep 1.36 fewer hours than those at the reference level (e.g., stress level 1). \\
+Stress Level 5 & -0.62 & Stress level 5 corresponds to 0.62 fewer hours of sleep compared to the reference level. \\
+Stress Level 6 & -0.90 & Stress level 6 is associated with a reduction of 0.90 hours of sleep. \\
+Stress Level 7 & -1.40 & Individuals at stress level 7 sleep about 1.40 hours less than those at the reference level. \\
+Stress Level 8 & -1.67 & The highest stress level is linked to a reduction of 1.67 hours of sleep — the strongest negative effect. \\
+Heart Rate & -0.0401 & Each 1 bpm increase in heart rate is associated with 0.0401 fewer hours (~2.4 minutes) of sleep. \\
+Daily Steps & -0.0002 & Each additional step slightly reduces sleep. For example, 5,000 more steps corresponds to about 1 hour less sleep. \\
+Pulse Pressure (PP) & -0.0821 & Each 1 mmHg increase in pulse pressure corresponds to ~5 minutes less sleep. \\
+\bottomrule
+\end{tabular}
+\end{table}
