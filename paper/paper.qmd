@@ -362,7 +362,18 @@ final_model_stats <- tibble::tibble(`F-statistic` = round(final_model_summary$fs
 knitr::kable(final_model_stats, caption = "Final Model Statistics")
 
 final_model <- lm(sleep_duration ~ ., data = sleep_test_final)
-summary(final_model)
+
+
+tidy(final_model) %>%
+  dplyr::select(term, estimate, p.value) %>%
+  kable(
+    digits = 3,
+    caption = "Coefficients and P-values from Linear Model",
+    booktabs = TRUE,
+    format = "latex",
+    escape = TRUE
+  )
+
 ```
 
 \begin{center}
