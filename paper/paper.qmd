@@ -369,6 +369,16 @@ summary(final_model)
 \Large\textbf{\large Discussion}
 \end{center}
 
+Upon comparing the final model to the original full model, we observe a reduction in the Adjusted R² from 0.958 to 0.880, and an increase in the Residual Sum of Squares (RSS) from 9.28 to 27.61. The F-statistic increased slightly from 313.34 to 343.56, while the Total Sum of Squares remained nearly unchanged at approximately 236. This suggests that, although the simplified model explains slightly less of the variation in sleep duration, it still performs quite well in terms of overall fit and statistical significance.
+
+Despite the modest drop in Adjusted R², we are confident in selecting the final model. This model is much simpler, yet retains highly significant explanatory power, making it more interpretable and potentially more useful in real-world applications. The use of Lasso regularization, which penalizes more complex models, likely contributed to the decrease in Adjusted R². This trade-off was intentional. We prioritized a simpler model with a more strict variable selection.
+This has important practical benefits: a simpler model enables more efficient and cost-effective data collection for future studies. For example, if a healthcare provider wanted to screen individuals for sleep issues, collecting a smaller set of variables would be faster and less resource-demanding.
+In the final model, several predictors emerged as statistically significant at the 5% level, including: Physical Activity Level, Stress Levels 4 through 8, and Pulse Pressure (PP). 
+
+These results align well with our expectations—individuals experiencing higher stress levels or reduced physical activity tend to sleep less. Interestingly, heart rate, while retained in the model, was not statistically significant at the 5% level, suggesting its role may be less direct in predicting sleepduration.
+Lastly, 10-fold cross-validation showed that both the full and final models performed well, with the final model achieving only a slight decrease in R² but with a meaningful gain in simplicity. This further supports our choice to recommend the final model as a strong, interpretable, and efficient tool for predicting sleep duration.
+
+
 ```{r include=FALSE}
 library(caret)
 library(knitr)
